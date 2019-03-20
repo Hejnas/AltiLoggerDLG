@@ -185,7 +185,7 @@ void wyswietl_strone()
   readFlashPage(0x0000);
   int j=0;
   for(int i=0;i<0x100;i++){
-    wyswietl_liczbe(strona[i]);
+    Serial.write(strona[i]);
     j++;
     if(j==16){
       Serial.println("");
