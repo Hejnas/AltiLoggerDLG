@@ -8,7 +8,8 @@ boolean zatrzymaj = false;
 int previousMillis = 0;        // will store the last time the LED was updated
 int interval = 1000;            // interval at which to blink (in milliseconds)
 
-uint32_t licznik = 0;
+uint32_t licznik = 32;  //pierwsze 32 bajty to licznik plików
+double timeCount = 0;   //licznik milisecund od power on
 String input;
 
 uint8_t strona[256];
@@ -50,30 +51,16 @@ void loop()
     previousMillis = previousMillis / interval;
     previousMillis = previousMillis * interval;
 
-    readParameters();
-    zmienna = daneDoFlash();
-    Serial.print(zmienna);
-    Serial.print(" ");
-    Serial.println(zmienna.length());
-    /*Serial.print("rawPress: ");
-    Serial.print(rawPress);
-    Serial.print("; rawTemp: ");
-    Serial.print(rawPress);
-    Serial.print("; millis: ");
-    Serial.print(millis());
-    Serial.print("; previousMillis: ");
-    Serial.println(previousMillis);
-    
-    Serial.print("Press: ");
-    Serial.print(Pressure);
-    Serial.print("; Temp: ");
-    Serial.print(Temperature);
-    Serial.print("; Alti: ");
-    Serial.println(Altitude);*/
-    
-    
-    LEDping(1);
-    licznik = licznik + interval;
+    readParameters(); //read MS5611 parameters
+    zmienna = daneDoFlash(); //stwórz ciąg z danych
+    Serial.println(zmienna); //wyświetl ciąg
+    writeFlashDane(licznik,zmienna); //zapisz ciąg do Flash
+    licznik = licznik + zmienna.length(); //przelicz adres
+    timeCount = timeCount + interval; //przelicz daną "czas"
+    if (Serial.available() > 0) { //sprawdz czy nie ma komendy
+      input = Serial.readString();
+      if (input.indexOf("PC") > -1)modePC();
+    }
   }
 }//end of loop
 
@@ -88,7 +75,7 @@ String daneDoFlash()
   double zmienna = 0;
   String dane = "";
 
-  zmienna = licznik;
+  zmienna = timeCount;
   zmienna = zmienna/1000;
   dane = String(zmienna,3) + ";";
   zmienna = Temperature;
@@ -174,10 +161,6 @@ void modePC()
       if (input == "c")wyswietlCx();
       if (input.indexOf("read") > -1)wyswietl_strone();
       if (input.indexOf("erase") > -1)FlashErase();
-      if (input=="write_test"){
-        writeFlashTest(costam,costam);
-        costam++;
-      }
       if (input.indexOf("identyfikator") > -1)Serial.print("DLG_LOGGER_20090605");
       if (input.indexOf("help") > -1)showLoggerHelp();
     }
@@ -251,21 +234,18 @@ void readFlashPage(uint16_t pageNum)
   deselectFlash();
 }
 
-void writeFlashTest(uint32_t addr, uint8_t wartosc){
+void writeFlashDane(uint32_t addr, String dane){
   while(FlashBusy());
   uint8_t dump;
   Flash_Write_Enable();
   selectFlash();
   SPI.transfer(0x02);
-  SPI.transfer(0x00);
-  SPI.transfer(0x00);
+  SPI.transfer(addr>>16);
+  SPI.transfer(addr>>8);
   SPI.transfer(addr);
-  SPI.transfer(wartosc);
-  /*uint8_t i=0;
-  do {
-    SPI.transfer(0xBB);
-    i++;
-  }while(i!=0);*/
+  for(int i = 0; i < dane.length(); i++){
+    SPI.transfer(dane.charAt(i));
+  }
   deselectFlash();
   Flash_Write_Disable();
 }
