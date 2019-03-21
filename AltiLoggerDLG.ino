@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include "alti_logger.h"
 
+#define Flash_Page_Program  0x02;
 String verLogger = "v0.2";
 
 boolean zatrzymaj = false;
@@ -8,7 +9,7 @@ boolean zatrzymaj = false;
 int previousMillis = 0;        // will store the last time the LED was updated
 int interval = 1000;            // interval at which to blink (in milliseconds)
 
-uint32_t licznik = 32;  //pierwsze 32 bajty to licznik plików
+uint32_t FlashAddres = 32;  //pierwsze 32 bajty to licznik plików
 double timeCount = 0;   //licznik milisecund od power on
 String input;
 
@@ -21,17 +22,14 @@ uint8_t costam = 0;
 //      ...::: SETUP :::...
 //
 // ---------------------------------------------------
-
 void setup() 
 {
-
+  
   initLogger();
   //if (sprawdzMode()==1) modePC(); //connection to PC
   delay(500);
   Serial.begin(SERIAL_BAUD);
   delay(500);
-
-  
   
 }//end of setup
 
@@ -41,9 +39,9 @@ void setup()
 //      ...::: LOOP :::...
 //
 // ---------------------------------------------------
-
 void loop()
 {
+  
   String zmienna = "";
   
   if (millis() - previousMillis > interval){
@@ -54,14 +52,18 @@ void loop()
     readParameters(); //read MS5611 parameters
     zmienna = daneDoFlash(); //stwórz ciąg z danych
     Serial.print(zmienna); //wyświetl ciąg
-    writeFlashDane(licznik,zmienna); //zapisz ciąg do Flash
-    licznik = licznik + zmienna.length(); //przelicz adres
-    timeCount = timeCount + interval; //przelicz daną "czas"
+    FlashAddres = writeFlashString(FlashAddres,zmienna); //zapisz ciąg do Flash
+    //licznik = licznik + zmienna.length(); //przelicz adres
+    
     if (Serial.available() > 0) { //sprawdz czy nie ma komendy
       input = Serial.readString();
       if (input.indexOf("PC") > -1)modePC();
     }
+    
+    timeCount = timeCount + interval; //przelicz daną "czas"
+    
   }
+  
 }//end of loop
 
 
@@ -72,6 +74,7 @@ void loop()
 // ---------------------------------------------------
 String daneDoFlash()
 {
+  
   double zmienna = 0;
   String dane = "";
 
@@ -86,15 +89,18 @@ String daneDoFlash()
   dane = dane + String(zmienna,1) + "\r\n";
 
   return dane;
+  
 }
+
+
 // ---------------------------------------------------
 //
 //      check PC connection
 //
 // ---------------------------------------------------
-
 uint8_t sprawdzMode()
 {
+  
   uint16_t x = 0xB4A3;
   
   pinMode(serial_TX1, OUTPUT);
@@ -107,6 +113,7 @@ uint8_t sprawdzMode()
     if(digitalRead(serial_RX1)!=bitRead(x,i)) return 1;
   }
   return 0;
+  
 }//end of sprawdzMode()
 
 
@@ -117,8 +124,6 @@ uint8_t sprawdzMode()
 // ---------------------------------------------------
 void modePC()
 {
-
-  
   
   Serial.begin(SERIAL_BAUD);
   delay(200);
@@ -150,7 +155,6 @@ void modePC()
 
         readParameters();
         
-      
         LEDping(1);
       }
     }
@@ -165,9 +169,17 @@ void modePC()
       if (input.indexOf("help") > -1)showLoggerHelp();
     }
   }
+  
 }//end of modePC
 
+
+// ---------------------------------------------------
+//
+//      showLoggerHelp
+//
+// ---------------------------------------------------
 void showLoggerHelp(){
+  
   Serial.print("DLG LOGGER ");
         Serial.println("v0.2");
         Serial.println("lista komend:");        
@@ -177,10 +189,18 @@ void showLoggerHelp(){
         Serial.println("   erase - kasuj pamięć flash");
         Serial.println("   identyfikator - wyświatl");
         Serial.println("   help - to menu");
-}
+  
+}//end of showLoggerHelp
 
+
+// ---------------------------------------------------
+//
+//      wyswietl_strone
+//
+// ---------------------------------------------------
 void wyswietl_strone()
 {
+  
   Serial.println("-----------------------------------------------");
   readFlashPage(0x0000);
   int j=0;
@@ -193,11 +213,15 @@ void wyswietl_strone()
       j=0;
     }*/
   }
-
-
   Serial.println("-----------------------------------------------");
-}
+}//end of wyswietl_strone
 
+
+// ---------------------------------------------------
+//
+//      wyswietl_liczbe
+//
+// ---------------------------------------------------
 void wyswietl_liczbe(uint8_t liczba)
 {
 
@@ -207,10 +231,18 @@ void wyswietl_liczbe(uint8_t liczba)
   }
   else Serial.print(liczba,HEX);
   Serial.print(" ");
-}
+  
+}//end of wyswietl_liczbe
 
+
+// ---------------------------------------------------
+//
+//      readFlashPage
+//
+// ---------------------------------------------------
 void readFlashPage(uint16_t pageNum)
 {
+  
   while(FlashBusy());
   uint8_t byteH = pageNum>>8;
   uint8_t byteL = pageNum;
@@ -233,20 +265,32 @@ void readFlashPage(uint16_t pageNum)
   }*/
   
   deselectFlash();
-}
+  
+}//end of readFlashPage
 
-void writeFlashDane(uint32_t addr, String dane){
+
+// ---------------------------------------------------
+//
+//      writeFlashString
+//      zapisuje pod wskazany adres flash ciąg
+//      i zwraca nowy dres flash
+//
+// ---------------------------------------------------
+uint32_t writeFlashString(uint32_t addr, String str){
+  
   while(FlashBusy());
-  uint8_t dump;
   Flash_Write_Enable();
   selectFlash();
-  SPI.transfer(0x02);
-  SPI.transfer(addr>>16);
-  SPI.transfer(addr>>8);
-  SPI.transfer(addr);
-  for(int i = 0; i < dane.length(); i++){
-    SPI.transfer(dane.charAt(i));
+  SPI.transfer(Flash_Page_Program);       //Flash page program
+  SPI.transfer(addr>>16);                 //High byte
+  SPI.transfer(addr>>8);                  //Middle byte
+  SPI.transfer(addr);                     //Low byte
+  for(int i = 0; i < str.length(); i++){  //write str to Flash
+    SPI.transfer(str.charAt(i));
   }
   deselectFlash();
   Flash_Write_Disable();
-}
+  addr = addr + str.length(); //przelicz adres
+  return addr;
+  
+}//end of writeFlashString
