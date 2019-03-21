@@ -53,7 +53,7 @@ void loop()
 
     readParameters(); //read MS5611 parameters
     zmienna = daneDoFlash(); //stwórz ciąg z danych
-    Serial.println(zmienna); //wyświetl ciąg
+    Serial.print(zmienna); //wyświetl ciąg
     writeFlashDane(licznik,zmienna); //zapisz ciąg do Flash
     licznik = licznik + zmienna.length(); //przelicz adres
     timeCount = timeCount + interval; //przelicz daną "czas"
@@ -83,7 +83,7 @@ String daneDoFlash()
   dane = dane + String(zmienna,1) + ";";
   zmienna = Altitude;
   zmienna = zmienna / 10;
-  dane = dane + String(zmienna,1) + ";";
+  dane = dane + String(zmienna,1) + "\r\n";
 
   return dane;
 }
@@ -185,12 +185,13 @@ void wyswietl_strone()
   readFlashPage(0x0000);
   int j=0;
   for(int i=0;i<0x100;i++){
-    Serial.write(strona[i]);
-    j++;
+    if(strona[i]>0x7E)Serial.print(" ");
+      else Serial.write(strona[i]);
+    /*j++;
     if(j==16){
       Serial.println("");
       j=0;
-    }
+    }*/
   }
 
 
