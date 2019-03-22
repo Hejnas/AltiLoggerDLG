@@ -1,11 +1,15 @@
 #include <SPI.h>
 #include "alti_logger.h"
 
-#define Flash_Page_Program  0x02
-#define Flash_read_data     0x03
-#define Flash_max_addres    4194303;
-
+#define altiLogger_ID "DLG_LOGGER_20090605"
 String verLogger = "v0.2";
+#define altiLogger_file_extension ".csv"
+
+#define Flash_CMD_page_program  0x02
+#define Flash_CMD_read_data     0x03
+#define Flash_max_addres        4194303   // 32Mbit = 4Mbyte = 4 x 1024 x 1024 = 4194304 max adress 419304 - 1
+#define Flash_FAT_0_addres      32
+#define Flash_data_0_addres     64
 
 boolean zatrzymaj = false;
 // Variables:
@@ -80,18 +84,17 @@ void loop()
 // ---------------------------------------------------
 uint32_t Flsh_Find_Start_Adress()
 {
-
   
   uint8_t i = 0;
   uint32_t addr;
 
   uint32_t return_value;
-  String nazwa_pliku = "(1.csv)";
+  String nazwa_pliku = "(1" + altiLogger_file_extension + ")";
   
   if(Flash_read_8bit(0x00)==0xFF){
     FlashErase();
     Flash_write_8bit(0x00,0x01);
-    return_value = writeFlashString(32, nazwa_pliku);
+    return_value = writeFlashString(Flash_data_0_addres, nazwa_pliku);
     return return_value;
   }
   else {
@@ -102,11 +105,11 @@ uint32_t Flsh_Find_Start_Adress()
       i++;
       addr = i / 8;
     }
-    nazwa_pliku = "(" + String(i) + ".csv)";
+    nazwa_pliku = "(" + String(i) + altiLogger_file_extension + ")";
 
 //znajdz start adress
 
-    addr = 32;
+    addr = Flash_data_0_addres;
     while(Flash_read_8bit(addr) != 0xFF){
       addr++;
     }
@@ -216,7 +219,7 @@ void modePC()
       if (input == "c")wyswietlCx();
       if (input.indexOf("read") > -1)wyswietl_strone();
       if (input.indexOf("erase") > -1)FlashErase();
-      if (input.indexOf("identyfikator") > -1)Serial.print("DLG_LOGGER_20090605");
+      if (input.indexOf("identyfikator") > -1)Serial.print(altiLogger_ID);
       if (input.indexOf("help") > -1)showLoggerHelp();
     }
   }
@@ -317,7 +320,7 @@ uint8_t Flash_read_8bit(uint32_t addr)
   uint8_t byteL = addr;
 
   selectFlash();
-  SPI.transfer(Flash_read_data);
+  SPI.transfer(Flash_CMD_read_data);
   SPI.transfer(byteH);
   SPI.transfer(byteM);
   SPI.transfer(byteL);
@@ -345,7 +348,7 @@ void Flash_write_8bit(uint32_t addr, uint8_t data)
 
   Flash_Write_Enable();
   selectFlash();
-  SPI.transfer(Flash_Page_Program);
+  SPI.transfer(Flash_CMD_page_program);
   SPI.transfer(byteH);
   SPI.transfer(byteM);
   SPI.transfer(byteL);
@@ -371,7 +374,7 @@ void readFlashPage(uint16_t pageNum)
   uint8_t dump;
 
   selectFlash();
-  dump = SPI.transfer(0x03); // command read page
+  dump = SPI.transfer(Flash_CMD_read_data); // command read page
   dump = SPI.transfer(byteH);
   dump = SPI.transfer(byteL);
   dump = SPI.transfer(0);
@@ -402,7 +405,7 @@ uint32_t writeFlashString(uint32_t addr, String str){
   while(FlashBusy());
   Flash_Write_Enable();
   selectFlash();
-  SPI.transfer(Flash_Page_Program);       //Flash page program
+  SPI.transfer(Flash_CMD_page_program);       //Flash page program
   SPI.transfer(addr>>16);                 //High byte
   SPI.transfer(addr>>8);                  //Middle byte
   SPI.transfer(addr);                     //Low byte
