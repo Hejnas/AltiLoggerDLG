@@ -1,7 +1,10 @@
 #include <SPI.h>
 #include "alti_logger.h"
 
-#define Flash_Page_Program  0x02;
+#define Flash_Page_Program  0x02
+#define Flash_read_data     0x03
+#define Flash_max_addres    4194303;
+
 String verLogger = "v0.2";
 
 boolean zatrzymaj = false;
@@ -9,7 +12,7 @@ boolean zatrzymaj = false;
 int previousMillis = 0;        // will store the last time the LED was updated
 int interval = 1000;            // interval at which to blink (in milliseconds)
 
-uint32_t FlashAddres = 32;  //pierwsze 32 bajty to licznik plików
+uint32_t FlashAddres;  //pierwsze 32 bajty to licznik plików
 double timeCount = 0;   //licznik milisecund od power on
 String input;
 
@@ -30,6 +33,10 @@ void setup()
   delay(500);
   Serial.begin(SERIAL_BAUD);
   delay(500);
+  FlashAddres = Flsh_Find_Start_Adress();
+  Serial.print("*****");
+  Serial.print(FlashAddres);
+  Serial.println("*****");
   
 }//end of setup
 
@@ -53,7 +60,6 @@ void loop()
     zmienna = daneDoFlash(); //stwórz ciąg z danych
     Serial.print(zmienna); //wyświetl ciąg
     FlashAddres = writeFlashString(FlashAddres,zmienna); //zapisz ciąg do Flash
-    //licznik = licznik + zmienna.length(); //przelicz adres
     
     if (Serial.available() > 0) { //sprawdz czy nie ma komendy
       input = Serial.readString();
@@ -66,6 +72,51 @@ void loop()
   
 }//end of loop
 
+
+// ---------------------------------------------------
+//
+//      Flsh_Find_Start_Adress & write new file name
+//
+// ---------------------------------------------------
+uint32_t Flsh_Find_Start_Adress()
+{
+
+  
+  uint8_t i = 0;
+  uint32_t addr;
+
+  uint32_t return_value;
+  String nazwa_pliku = "(1.csv)";
+  
+  if(Flash_read_8bit(0x00)==0xFF){
+    FlashErase();
+    Flash_write_8bit(0x00,0x01);
+    return_value = writeFlashString(32, nazwa_pliku);
+    return return_value;
+  }
+  else {
+
+//nazwa nowego pliku
+    addr = i / 8;
+    while(bitRead(Flash_read_8bit(addr),(i - addr * 8)) != 1){
+      i++;
+      addr = i / 8;
+    }
+    nazwa_pliku = "(" + String(i) + ".csv)";
+
+//znajdz start adress
+
+    addr = 32;
+    while(Flash_read_8bit(addr) != 0xFF){
+      addr++;
+    }
+    return_value = writeFlashString(addr, nazwa_pliku);
+    return return_value;
+  }
+
+  return 0;
+  
+}//end of Flsh_Find_Start_Adress
 
 // ---------------------------------------------------
 //
@@ -200,20 +251,35 @@ void showLoggerHelp(){
 // ---------------------------------------------------
 void wyswietl_strone()
 {
+
+  //uint8_t dump;
+  uint32_t addr=0;
+  uint8_t i = 0;
   
+  Serial.println("***********************************************");
+
+  for(addr=0;addr<32;addr++)Serial.println(Flash_read_8bit(addr),BIN);
+
   Serial.println("-----------------------------------------------");
-  readFlashPage(0x0000);
-  int j=0;
+
+  while(Flash_read_8bit(addr)!=0xFF){
+    Serial.write(Flash_read_8bit(addr));
+    addr++;
+  }
+  
+  /*readFlashPage(0x0000);
+  
   for(int i=0;i<0x100;i++){
     if(strona[i]>0x7E)Serial.print(" ");
       else Serial.write(strona[i]);
-    /*j++;
-    if(j==16){
-      Serial.println("");
-      j=0;
-    }*/
   }
-  Serial.println("-----------------------------------------------");
+  Serial.println("**********");
+  for(int i=0;i<0x100;i++){
+    Serial.print(Flash_read_8bit(i),HEX);
+    Serial.print(" ");
+  }
+  Serial.println("-----------------------------------------------");*/
+  
 }//end of wyswietl_strone
 
 
@@ -233,6 +299,61 @@ void wyswietl_liczbe(uint8_t liczba)
   Serial.print(" ");
   
 }//end of wyswietl_liczbe
+
+
+// ---------------------------------------------------
+//
+//      Flash_read_8bit
+//
+// ---------------------------------------------------
+uint8_t Flash_read_8bit(uint32_t addr)
+{
+  
+  while(FlashBusy());
+
+  uint8_t return_value;
+  uint8_t byteH = addr >> 16;
+  uint8_t byteM = addr >> 8;
+  uint8_t byteL = addr;
+
+  selectFlash();
+  SPI.transfer(Flash_read_data);
+  SPI.transfer(byteH);
+  SPI.transfer(byteM);
+  SPI.transfer(byteL);
+  return_value = SPI.transfer(0x00);
+  deselectFlash();
+  
+  return return_value;
+  
+}//end of Flash_read_8bit
+
+
+// ---------------------------------------------------
+//
+//      Flash_write_8bit
+//
+// ---------------------------------------------------
+void Flash_write_8bit(uint32_t addr, uint8_t data)
+{
+  
+  while(FlashBusy());
+
+  uint8_t byteH = addr >> 16;
+  uint8_t byteM = addr >> 8;
+  uint8_t byteL = addr;
+
+  Flash_Write_Enable();
+  selectFlash();
+  SPI.transfer(Flash_Page_Program);
+  SPI.transfer(byteH);
+  SPI.transfer(byteM);
+  SPI.transfer(byteL);
+  SPI.transfer(data);
+  deselectFlash();
+  Flash_Write_Disable();
+  
+}//end of Flash_write_8bit
 
 
 // ---------------------------------------------------
