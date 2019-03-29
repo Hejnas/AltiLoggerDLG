@@ -1,12 +1,8 @@
 #include <SPI.h>
 #include "alti_logger.h"
 
-const String altiLogger_ID = "DLG_LOGGER_20090605";
-const String altiLogger_ver = "v0.2";
-const String altiLogger_file_extension = ".csv";
-
 boolean zatrzymaj = false;
-// Variables:
+
 int previousMillis = 0;        // will store the last time the LED was updated
 int interval = 1000;           // interval at which to blink (in milliseconds)
 
@@ -16,24 +12,30 @@ uint8_t strona[256];
 uint8_t costam = 0;
 
 
-// ---------------------------------------------------
-//
-//      ...::: SETUP :::...
-//
-// ---------------------------------------------------
-void setup() 
+/* ---------------------------------------------------
+ *
+ *      ...::: SETUP :::...
+ *
+ * ---------------------------------------------------*/
+void setup()
 {
-  
-  uint8_t i;
-  
-  // initialize alitLogger
-  i = altiLogger_init();
-  if(i != 0) altiLogger_error(i);
-  
-  //if (sprawdzMode()==1) modePC(); //connection to PC
-  delay(100);
-  Serial.begin(SERIAL_BAUD);
-  delay(200);
+
+  // ....:::: ALTI LOGGER INIT :::::.....
+  uint8_t altiLogger_init_return = altiLogger_init();
+  if(altiLogger_init_return != 1){
+    if(altiLogger_init_return == 5){    //wybrano PC mode
+      modePC();
+    }
+    else{
+      if(altiLogger_error(altiLogger_init_return)==true  
+      {
+        modePC();   //wybrano PC mode
+      }
+      else altiLogger_error(100); //wrong altiLogger_error return value   //błąd wewnętrzny funkcji altiLogger_error()
+    }
+  }
+
+  /* ..:: :::... ..:: :::... ..:: :::... ..:: :::... ..:: :::... ..:: :::... ..:: :::... ..:: :::... */
   
   // find first free data Flash addres
   FlashAddres = Flsh_start();
