@@ -1,7 +1,7 @@
 # AltiLoggerDLG
 
-microcontroller: ATMEGA328PB
-baro: MS5611
-baro protokol: SPI
-flash: W25Q32
-flash protokol: SPI
+microcontroller: ATMEGA328PB<br>
+baro: MS5611<br>
+baro protokol: SPI<br>
+flash: W25Q32<br>
+flash protokol: SPI<br>
