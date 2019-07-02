@@ -3,9 +3,9 @@
 #define SERIAL_BAUD      115200
 
 //definicja nr pinow
-#define pinLED PC13
-#define MS5611_SS PA0
-#define FLASH_SS  PA1
+#define pinLED 4
+#define MS5611_SS 10
+#define FLASH_SS  9
 
 #define MS5611_CMD_ADC_READ   0x00
 #define MS5611_CMD_RESET      0x1E
@@ -75,24 +75,27 @@ void setup()
   delay(500);
 
   //Ustawienia SPI
+  SPI.begin();
   SPI.setBitOrder(MSBFIRST); // Set the SPI_1 bit order
   SPI.setDataMode(SPI_MODE0); //Set the  SPI_2 data mode 0
   SPI.setClockDivider(SPI_CLOCK_DIV8);      // Slow speed (72 / 16 = 4.5 MHz SPI_1 speed)
-  SPI.begin();
-
+  
   print_LoggerDLG_info();
 
   if(init_MS5611()==false){
     Logger_Error(2);
   }
+  else wyswietlCx();
   
   if(init_Flash()==false){
     Logger_Error(3);
   }
+  else Serial.println("Flash init OK");
   
   if(Flash_mem_format()==false){
     Logger_Error(4);
   }
+  else Serial.println("Flash mem format OK");
 
   //znalezienie początku wolnej pamięci
   FlashAddres = Flash_find_start_address();
@@ -358,8 +361,6 @@ bool init_MS5611(void){
   //odczytanie referencePressure
   readConv();
   referencePressure = calcPressure();
-  
-  //wyswietlCx();
 
   return true;
   
@@ -387,7 +388,7 @@ bool init_Flash(void){
     deselectFlash();
     return false;
   }
-  deselectFlash();  
+  deselectFlash();
   return true;
   
 }// end of init_Flash
