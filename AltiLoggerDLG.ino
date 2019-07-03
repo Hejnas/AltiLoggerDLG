@@ -56,7 +56,7 @@ String altiLogger_file_extension = ".csv";
 
 uint32_t FlashAddres = 64; //Flsh start adress
 
-
+String nazwa_pliku;
 
 // ---------------------------------------------------
 //
@@ -98,22 +98,8 @@ void setup()
 
   //znalezienie początku wolnej pamięci
   FlashAddres = Flash_find_start_address();
-  Serial.print("first flash free addres: ");
-  Serial.println(FlashAddres);
-
-  //sprawdzenie czy PCmode
-  input = Serial.readString();
-  Serial.println("autor: Hejnas");
-  input = Serial.readString();
-  if (input.indexOf("autor: Hejnas") > -1)
-  {
-    Serial.println("--- S T A R T ----");
-  }
-  else
-  {
-     PC_mode();
-  }
   
+
   //odczytanie nr pliku    
   uint8_t nr_pliku = find_file_num();
   if(nr_pliku==0){
@@ -121,10 +107,19 @@ void setup()
   }
   
   //wpisanie nazwy nowego pliku do mem
-  String nazwa_pliku;
   nazwa_pliku = String(nr_pliku) + altiLogger_file_extension  + "\r\n";
   FlashAddres = Flash_write_string(FlashAddres,nazwa_pliku);
-  Serial.print("file name: " + nazwa_pliku);
+  
+  //sprawdzenie czy PCmode
+  input = Serial.readString();
+  Serial.println(altiLogger_ID);
+  input = Serial.readString();
+  if (input.indexOf(altiLogger_ID) > -1){
+    //tryb zbierania danych
+  }
+  else{
+     PC_mode();
+  }
   
 }// end of setup
 
@@ -239,8 +234,17 @@ void Logger_Error(uint8_t error_num){
 void PC_mode()
 {
   LED_on();
+  
   Serial.println(" --- PC mode ---");
+  
   print_LoggerDLG_info();
+
+  wyswietlCx();
+  
+  Serial.print("first flash free addres: ");
+  Serial.println(FlashAddres);
+  
+  Serial.println("file name: " + nazwa_pliku);
   
   while(1)
   {
